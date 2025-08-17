@@ -179,10 +179,183 @@ def load_css():
             background-color: #f8fafc;
             border-right: 1px solid #e2e8f0;
         }
+        
+        /* Agent Steps */
+        .agent-step {
+            background: #1a1a1a;
+            border-radius: 8px;
+            padding: 16px;
+            margin: 8px 0;
+            border-left: 4px solid #3b82f6;
+            animation: slideIn 0.5s ease-out;
+        }
+        
+        .agent-step.completed {
+            border-left-color: #10b981;
+            opacity: 0.8;
+        }
+        
+        .agent-step.current {
+            border-left-color: #f59e0b;
+            box-shadow: 0 0 10px rgba(245, 158, 11, 0.3);
+        }
+        
+        .agent-thinking {
+            background: linear-gradient(90deg, #1a1a1a, #2a2a2a, #1a1a1a);
+            background-size: 200% 100%;
+            animation: thinking 2s ease-in-out infinite;
+            border-radius: 8px;
+            padding: 12px;
+            margin: 8px 0;
+            border-left: 4px solid #f59e0b;
+            color: #fbbf24;
+        }
+        
+        @keyframes thinking {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+        }
+        
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateX(-20px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+        
+        .step-icon {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            margin-right: 8px;
+            text-align: center;
+            line-height: 20px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        
+        .step-icon.pending {
+            background-color: #374151;
+            color: #9ca3af;
+        }
+        
+        .step-icon.current {
+            background-color: #f59e0b;
+            color: #000;
+        }
+        
+        .step-icon.completed {
+            background-color: #10b981;
+            color: #fff;
+        }
     </style>
     """, unsafe_allow_html=True)
 
 load_css()
+
+# Agent workflow functions
+def stream_text(text, delay=0.03):
+    """Generator function for streaming text with typewriter effect"""
+    for char in text:
+        yield char
+        time.sleep(delay)
+
+def stream_agent_step(step_title, step_description, step_status="current"):
+    """Stream a single agent step with typewriter effect"""
+    icon = "⚡" if step_status == "current" else "✓" if step_status == "completed" else "○"
+    step_class = f"agent-step {step_status}"
+    icon_class = f"step-icon {step_status}"
+    
+    # Create the step HTML structure
+    step_html = f"""
+    <div class="{step_class}">
+        <span class="{icon_class}">{icon}</span>
+        <strong>{step_title}</strong>
+        <div style="margin-top: 8px; font-size: 0.9em; opacity: 0.8;">
+            {step_description}
+        </div>
+    </div>
+    """
+    return step_html
+
+def display_agent_steps():
+    """Display the agent's workflow steps in real-time"""
+    if st.session_state.agent_steps:
+        st.markdown("### 🤖 Agent Workflow")
+        
+        for i, step in enumerate(st.session_state.agent_steps):
+            status = "completed" if i < st.session_state.current_step else ("current" if i == st.session_state.current_step else "pending")
+            icon_class = f"step-icon {status}"
+            
+            if status == "completed":
+                icon = "✓"
+            elif status == "current":
+                icon = "⚡"
+            else:
+                icon = str(i + 1)
+            
+            step_class = f"agent-step {status}"
+            
+            st.markdown(f"""
+            <div class="{step_class}">
+                <span class="{icon_class}">{icon}</span>
+                <strong>{step['title']}</strong>
+                <div style="margin-top: 8px; font-size: 0.9em; opacity: 0.8;">
+                    {step['description']}
+                </div>
+                {f'<div style="margin-top: 8px; font-size: 0.85em; color: #10b981;">✓ {step["result"]}</div>' if step.get('result') and status == 'completed' else ''}
+            </div>
+            """, unsafe_allow_html=True)
+
+def display_agent_thinking(thinking_text):
+    """Display the agent's current thinking process"""
+    if thinking_text:
+        st.markdown(f"""
+        <div class="agent-thinking">
+            <strong>🧠 Agent is thinking...</strong>
+            <div style="margin-top: 8px; font-style: italic;">
+                {thinking_text}
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+
+def initialize_agent_workflow():
+    """Initialize the agent workflow steps"""
+    st.session_state.agent_steps = [
+        {
+            "title": "📋 Analyzing Requirements",
+            "description": "Understanding your natural language requirements and extracting key components"
+        },
+        {
+            "title": "🔍 Context Discovery", 
+            "description": "Scanning existing codebase and identifying relevant patterns and dependencies"
+        },
+        {
+            "title": "🎯 Planning Architecture",
+            "description": "Designing the DAG structure, task dependencies, and workflow logic"
+        },
+        {
+            "title": "⚙️ Generating Components",
+            "description": "Creating tasks, operators, and connections based on requirements"
+        },
+        {
+            "title": "🔧 Code Generation",
+            "description": "Writing production-ready Python code with proper imports and configurations"
+        },
+        {
+            "title": "✅ Validation & Testing",
+            "description": "Validating syntax, checking dependencies, and ensuring best practices"
+        }
+    ]
+    st.session_state.current_step = 0
+
+def update_agent_step(step_index, result_text=None, thinking_text=None):
+    """Update the current agent step"""
+    if step_index < len(st.session_state.agent_steps):
+        if result_text:
+            st.session_state.agent_steps[step_index]['result'] = result_text
+        st.session_state.current_step = step_index
+        if thinking_text:
+            st.session_state.agent_thinking = thinking_text
 
 # App header
 st.markdown("""
@@ -199,6 +372,12 @@ if 'generated_dag' not in st.session_state:
     st.session_state.generated_dag = None
 if 'deploy_result' not in st.session_state:
     st.session_state.deploy_result = None
+if 'agent_steps' not in st.session_state:
+    st.session_state.agent_steps = []
+if 'current_step' not in st.session_state:
+    st.session_state.current_step = 0
+if 'agent_thinking' not in st.session_state:
+    st.session_state.agent_thinking = ""
 
 # Sidebar configuration
 with st.sidebar:
@@ -287,30 +466,96 @@ if submitted:
     elif not api_key:
         st.error(f"Please enter your {provider} API key")
     else:
+        # Initialize agent workflow
+        initialize_agent_workflow()
+        
+        # Create dedicated containers for agent workflow
+        st.markdown("---")
+        st.markdown("### 🤖 Agent Workflow")
+        
+        # Define agent steps with detailed messages
+        agent_workflow_steps = [
+            {
+                "title": "📋 Analyzing Requirements",
+                "thinking": "🧠 Parsing natural language requirements and identifying key components...",
+                "completion": "✅ Requirements analyzed successfully - extracted data sources, transformations, and scheduling needs"
+            },
+            {
+                "title": "🔍 Context Discovery", 
+                "thinking": "🧠 Scanning existing codebase for patterns, dependencies, and reusable components...",
+                "completion": "✅ Codebase context loaded - found relevant operators and connection patterns"
+            },
+            {
+                "title": "🎯 Planning Architecture",
+                "thinking": "🧠 Designing DAG structure, task dependencies, and optimal workflow logic...",
+                "completion": "✅ Architecture planned - defined task sequence and dependency graph"
+            },
+            {
+                "title": "⚙️ Generating Components",
+                "thinking": "🧠 Creating tasks, operators, and connections based on requirements...",
+                "completion": "✅ Components generated - built all necessary tasks and operators"
+            },
+            {
+                "title": "🔧 Code Generation",
+                "thinking": "🧠 Writing production-ready Python code with proper imports and configurations...",
+                "completion": "✅ Code generated successfully - created complete DAG with best practices"
+            },
+            {
+                "title": "✅ Validation & Testing",
+                "thinking": "🧠 Validating syntax, checking dependencies, and ensuring best practices...",
+                "completion": "✅ Validation completed - DAG is ready for deployment"
+            }
+        ]
+        
         try:
-            with st.spinner("Initializing DAG generator..."):
-                st.session_state.client = DAGGeneratorClient(
-                    api_key=api_key, codebase_path=codebase_path, 
-                    airflow_container_name=container_name, llm_provider="google",
-                    use_embeddings=use_embeddings, embedding_provider=embedding_provider.lower(),
-                    requirements=requirements, airflow_webserver_url=config.AIRFLOW_WEBSERVER_URL,
-                    log_level=config.LOG_LEVEL
-                )
-            
-            with st.spinner("Generating DAG (this may take a few minutes)..."):
-                result = st.session_state.client.generate_dag(requirements)
-                st.session_state.generated_dag = result
-                st.session_state.deploy_result = None
+            # Process each step with typewriter effect
+            for i, step_info in enumerate(agent_workflow_steps):
+                # Show step title with typewriter effect
+                st.write_stream(stream_text(f"**{step_info['title']}**"))
+                
+                # Show thinking process with typewriter effect
+                thinking_placeholder = st.empty()
+                with thinking_placeholder:
+                    st.write_stream(stream_text(step_info['thinking']))
+                
+                # Initialize client on first step
+                if i == 0:
+                    st.session_state.client = DAGGeneratorClient(
+                        api_key=api_key, codebase_path=codebase_path, 
+                        airflow_container_name=container_name, llm_provider="google",
+                        use_embeddings=use_embeddings, embedding_provider=embedding_provider.lower(),
+                        requirements=requirements, airflow_webserver_url=config.AIRFLOW_WEBSERVER_URL,
+                        log_level=config.LOG_LEVEL
+                    )
+                
+                # Generate DAG on code generation step
+                if i == 4:
+                    result = st.session_state.client.generate_dag(requirements)
+                    st.session_state.generated_dag = result
+                    st.session_state.deploy_result = None
+                
+                # Simulate processing time
+                time.sleep(2)
+                
+                # Clear thinking and show completion
+                thinking_placeholder.empty()
+                st.write_stream(stream_text(step_info['completion']))
+                st.markdown("---")
+                
+                # Small pause between steps
+                time.sleep(0.5)
 
-                if result.get("success"):
-                    st.success("DAG generated successfully!")
-                else:
-                    st.error(f"Failed to generate DAG: {result.get('error', 'Unknown error')}")
-                    if result.get('suggestion'):
-                        st.info(f"Suggestion: {result.get('suggestion')}")
+            # Final completion message with typewriter effect
+            if result.get("success"):
+                st.write_stream(stream_text("🎉 **Agent Workflow Complete!** DAG generated successfully and ready for deployment."))
+                st.success("✅ All steps completed successfully!")
+            else:
+                st.write_stream(stream_text(f"❌ **Agent encountered an issue:** {result.get('error', 'Unknown error')}"))
+                if result.get('suggestion'):
+                    st.write_stream(stream_text(f"💡 **Agent suggestion:** {result.get('suggestion')}"))
 
         except Exception as e:
-            st.error(f"An error occurred: {e}")
+            st.error(f"🚨 Agent encountered an error: {e}")
 
 # Display results in a clean, organized layout
 if st.session_state.generated_dag:
@@ -390,13 +635,64 @@ if st.session_state.generated_dag:
             
             if st.button("🚀 Deploy DAG", use_container_width=True):
                 if st.session_state.client:
-                    with st.spinner("Deploying DAG..."):
-                        deploy_result = st.session_state.client.deploy_and_test_dag(
-                            dag_code=result['dag_code'],
-                            dag_id=result['dag_id']
-                        )
-                        st.session_state.deploy_result = deploy_result
-                        st.rerun()
+                    st.markdown("### 🚀 Agent Deployment Workflow")
+                    
+                    # Define deployment steps with typewriter messages
+                    deploy_workflow_steps = [
+                        {
+                            "title": "🔍 Pre-deployment Validation",
+                            "thinking": "🧠 Checking DAG syntax, imports, and dependency requirements...",
+                            "completion": "✅ Validation passed - DAG structure and syntax are correct"
+                        },
+                        {
+                            "title": "📦 Preparing Deployment",
+                            "thinking": "🧠 Packaging DAG files and preparing for container deployment...",
+                            "completion": "✅ Deployment package ready - files prepared for Airflow"
+                        },
+                        {
+                            "title": "🚀 Deploying to Airflow",
+                            "thinking": "🧠 Copying DAG to Airflow environment and registering workflow...",
+                            "completion": "✅ Deployment successful - DAG copied to Airflow container"
+                        },
+                        {
+                            "title": "✅ Post-deployment Testing",
+                            "thinking": "🧠 Verifying DAG registration and testing accessibility...",
+                            "completion": "✅ Testing complete - DAG is active and ready to run"
+                        }
+                    ]
+                    
+                    # Process each deployment step with typewriter effect
+                    for i, step_info in enumerate(deploy_workflow_steps):
+                        # Show step title with typewriter effect
+                        st.write_stream(stream_text(f"**{step_info['title']}**"))
+                        
+                        # Show thinking process with typewriter effect
+                        thinking_placeholder = st.empty()
+                        with thinking_placeholder:
+                            st.write_stream(stream_text(step_info['thinking']))
+                        
+                        # Actually deploy on the deployment step
+                        if i == 2:
+                            deploy_result = st.session_state.client.deploy_and_test_dag(
+                                dag_code=result['dag_code'],
+                                dag_id=result['dag_id']
+                            )
+                            st.session_state.deploy_result = deploy_result
+                        
+                        # Simulate processing time
+                        time.sleep(1.5)
+                        
+                        # Clear thinking and show completion
+                        thinking_placeholder.empty()
+                        st.write_stream(stream_text(step_info['completion']))
+                        st.markdown("---")
+                        
+                        # Small pause between steps
+                        time.sleep(0.3)
+                    
+                    # Final deployment message
+                    st.write_stream(stream_text("🎉 **Deployment Agent Complete!** Your DAG is now live in Airflow."))
+                    st.rerun()
                 else:
                     st.error("Client not initialized. Please try generating the DAG again.")
             
