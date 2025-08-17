@@ -34,14 +34,14 @@ class CodebaseTools:
             args_schema = CodeSearchInput
             
             def _run(self, query: str, max_results: int = 5) -> Dict[str, Any]:
-                return self.codebase_context.search_context(
+                return self.context.search_context(
                     query, 
                     max_results=max_results, 
                     semantic=True
                 )
                 
         tool = CodeSearchTool()
-        tool.codebase_context = self.context
+        tool.context = self.context
         return tool
         
     def file_read_tool(self) -> BaseTool:
@@ -52,14 +52,14 @@ class CodebaseTools:
             args_schema = FileReadInput
             
             def _run(self, file_path: str) -> Dict[str, Any]:
-                content = self.codebase_context.read_file(file_path)
+                content = self.context.read_file(file_path)
                 return {
                     "file_path": file_path,
                     "content": content if content else "File not found"
                 }
                 
         tool = FileReadTool()
-        tool.codebase_context = self.context
+        tool.context = self.context
         return tool
 
     def get_tools(self) -> List[BaseTool]:

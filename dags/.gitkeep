@@ -1,0 +1,2 @@
+# This file ensures the dags directory is tracked by git
+# Generated DAGs will be placed in this directory

@@ -15,9 +15,9 @@ from langchain_core.runnables import RunnablePassthrough
 from langchain_google_genai import ChatGoogleGenerativeAI
 
 # Local imports
-from tools import CodebaseTools
-from context import CodebaseContext
-from docker_manager import DockerManager
+from .tools import CodebaseTools
+from ..core.context import CodebaseContext
+from ..core.docker_manager import DockerManager
 
 logger = logging.getLogger(__name__)
 
